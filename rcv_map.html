@@ -614,20 +614,38 @@ function populateElectionSelect() {
   }
 }
 
-document.getElementById('election-select').addEventListener('change', e => {
+document.getElementById('election-select').addEventListener('change', async e => {
   currentElection = e.target.value;
   currentRound = 1;
   colorMode = 'winner';
-  loadElection();
+  await loadElection();
 });
 
-function loadElection() {
+async function loadElection() {
   const info = ELECTIONS[currentElection];
-  if (!info || !DATA[info.dataKey]) {
-    console.warn('No data for', currentElection);
+  if (!info) {
+    console.warn('No election entry for', currentElection);
     return;
   }
-  electionData = DATA[info.dataKey];
+
+  // Fetch from dataUrl if available; fall back to embedded DATA
+  if (info.dataUrl) {
+    try {
+      const resp = await fetch(info.dataUrl);
+      electionData = await resp.json();
+    } catch (e) {
+      console.warn('Failed to fetch', info.dataUrl, '— trying embedded DATA fallback', e);
+      electionData = DATA[info.dataKey] || null;
+    }
+  } else {
+    electionData = DATA[info.dataKey] || null;
+  }
+
+  if (!electionData) {
+    console.warn('No data available for', currentElection);
+    return;
+  }
+
   currentRound = 1;
   buildColorModes();
   buildStepper();
@@ -644,26 +662,29 @@ async function init() {
     const resp = await fetch('data/manifest.json');
     const manifest = await resp.json();
 
-    // Build ELECTIONS from manifest entries that have embedded data
     for (const entry of manifest) {
-      if (DATA[entry.id]) {
-        ELECTIONS[entry.id] = { label: entry.label, dataKey: entry.id, status: entry.status };
+      if (entry.status === 'available') {
+        ELECTIONS[entry.id] = {
+          label:   entry.label,
+          dataKey: entry.id,
+          dataUrl: entry.dataUrl,
+          status:  entry.status
+        };
       }
     }
 
-    // Default to first available election
     currentElection = Object.keys(ELECTIONS)[0] || '2018_cd2_dem';
   } catch (e) {
     // Fallback if manifest fetch fails: use embedded DATA keys
     console.warn('manifest.json not found, falling back to embedded DATA keys', e);
     for (const key of Object.keys(DATA)) {
-      ELECTIONS[key] = { label: key, dataKey: key, status: 'available' };
+      ELECTIONS[key] = { label: key, dataKey: key, dataUrl: null, status: 'available' };
     }
     currentElection = Object.keys(ELECTIONS)[0];
   }
 
   populateElectionSelect();
-  loadElection();
+  await loadElection();
 }
 
 init();
