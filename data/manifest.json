@@ -1,0 +1,22 @@
+[
+  {
+    "id": "2018_cd2_dem",
+    "label": "2018 CD2 Dem Primary",
+    "year": 2018,
+    "race": "CD2 Democratic Primary",
+    "status": "available",
+    "dataUrl": "data/rcv_2018_cd2_dem.json",
+    "meta": "4 candidates · 4 rounds · 50,845 ballots",
+    "candidates": ["Golden", "St. Clair", "Olson", "Fulford"]
+  },
+  {
+    "id": "2026_cd2_dem",
+    "label": "2026 CD2 Dem Primary",
+    "year": 2026,
+    "race": "CD2 Democratic Primary",
+    "status": "coming_soon",
+    "dataUrl": "data/rcv_2026_cd2_dem.json",
+    "meta": "CVR pending post-certification",
+    "candidates": ["Baldacci", "Dunlap", "Loud", "Wood"]
+  }
+]
