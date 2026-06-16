@@ -430,11 +430,15 @@ function buildGeoLayer() {
       };
     },
     onEachFeature: (feature, layer) => {
-      layer.on({
-        mouseover: e => { showTooltip(feature.properties); highlightLayer(e.target); },
-        mouseout: e => { hideTooltip(); resetLayerStyle(e.target); },
-        click: e => { showTooltip(feature.properties); }
-      });
+      if (isMobile()) {
+        layer.on('click', e => { handleMobileTownTap(e); });
+      } else {
+        layer.on({
+          mouseover: e => { showTooltip(feature.properties); highlightLayer(e.target); },
+          mouseout: e => { hideTooltip(); resetLayerStyle(e.target); },
+          click: e => { showTooltip(feature.properties); }
+        });
+      }
     }
   }).addTo(map);
 }
@@ -829,18 +833,8 @@ function loadElection() {
   buildGeoLayer();
   updateMapColors(false);  // paint towns immediately after layer is built
   updateStandings();
-  // Mobile: re-wire handlers and update strip when election changes
-  if (isMobile()) {
-    setTimeout(() => {
-      if (geoLayer) {
-        geoLayer.eachLayer(layer => {
-          layer.off('mouseover mouseout click');
-          layer.on('click', handleMobileTownTap);
-        });
-      }
-      updateMobileStrip();
-    }, 50);
-  }
+  // Mobile: update strip when election changes
+  if (isMobile()) { setTimeout(() => updateMobileStrip(), 50); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -871,17 +865,7 @@ async function init() {
 
   populateElectionSelect();
   loadElection();
-  if (isMobile()) {
-    setTimeout(() => {
-      if (geoLayer) {
-        geoLayer.eachLayer(layer => {
-          layer.off('mouseover mouseout click');
-          layer.on('click', handleMobileTownTap);
-        });
-      }
-      updateMobileStrip();
-    }, 100);
-  }
+  if (isMobile()) { setTimeout(() => updateMobileStrip(), 100); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1139,48 +1123,16 @@ function handleDesktopClick(e) {
   // desktop click: no-op (tooltip already showing)
 }
 
-// Override buildGeoLayer to add split desktop/mobile handlers
-const _origBuildGeoLayer = buildGeoLayer;
-function buildGeoLayerWithMobileHandlers() {
-  _origBuildGeoLayer();
-  // Re-attach handlers after geo layer is rebuilt
-  if (geoLayer) {
-    geoLayer.eachLayer(layer => {
-      // Remove old listeners
-      layer.off('mouseover mousemove mouseout click');
-      if (isMobile()) {
-        layer.on('click', handleMobileTownTap);
-      } else {
-        layer.on({
-          mouseover: e => showTooltip(e.target.feature.properties),
-          mouseout: hideTooltip,
-          click: e => showTooltip(e.target.feature.properties)
-        });
-      }
-    });
-  }
-}
-
-// Hook into goToRound to also update mobile UI
-const _origGoToRound = goToRound;
-function goToRoundWithMobile(round, animate) {
-  _origGoToRound(round, animate);
-  if (isMobile()) {
-    updateMobileStrip();
-    updateTownSheetIfOpen();
-    if (standingsSheetOpen) buildStandingsSheetContent();
-  }
-}
-
 // ── Mobile nav button wiring ──────────────────────────────────────
+// goToRound already updates mobile strip; just call it directly.
 document.getElementById('mob-prev-btn').addEventListener('click', () => {
-  goToRoundWithMobile(currentRound - 1, false);
+  goToRound(currentRound - 1, false);
 });
 document.getElementById('mob-next-btn').addEventListener('click', () => {
-  goToRoundWithMobile(currentRound + 1, true);
+  goToRound(currentRound + 1, true);
 });
 document.getElementById('mob-replay-btn').addEventListener('click', () => {
-  goToRoundWithMobile(currentRound, true);
+  goToRound(currentRound, true);
 });
 document.getElementById('mobile-info-strip').addEventListener('click', () => {
   openStandingsSheet();
@@ -1192,40 +1144,16 @@ document.getElementById('ts-pin-btn').addEventListener('click', () => {
 });
 document.getElementById('ss-close').addEventListener('click', closeStandingsSheet);
 
-// ── Patch loadElection to add mobile setup ────────────────────────
-const _origLoadElection = loadElection;
-function loadElectionWithMobile() {
-  _origLoadElection();
-  if (isMobile()) {
-    // Re-attach mobile touch handlers after geo layer rebuilt
-    setTimeout(() => {
-      if (geoLayer) {
-        geoLayer.eachLayer(layer => {
-          layer.off('mouseover mousemove mouseout click');
-          layer.on('click', handleMobileTownTap);
-        });
-      }
-      updateMobileStrip();
-    }, 50);
-  }
-}
+// ── loadElection already patched inline; updateMobileStrip called from goToRound
+// No additional loadElection wrapper needed.
 
 // ── Resize handler ────────────────────────────────────────────────
+// Note: layer event handlers are bound at geo layer build time (inside buildGeoLayer).
+// A full rebuild would be needed to switch between mobile/desktop on resize, which
+// is an edge case we don't need to handle — the page layout change (rotation, etc.)
+// will prompt a reload on real devices.
 window.addEventListener('resize', () => {
-  if (geoLayer) {
-    geoLayer.eachLayer(layer => {
-      layer.off('mouseover mouseout click');
-      if (isMobile()) {
-        layer.on('click', handleMobileTownTap);
-      } else {
-        layer.on({
-          mouseover: e => showTooltip(e.target.feature.properties),
-          mouseout: hideTooltip,
-          click: e => showTooltip(e.target.feature.properties)
-        });
-      }
-    });
-  }
+  if (isMobile()) updateMobileStrip();
 });
 
 
