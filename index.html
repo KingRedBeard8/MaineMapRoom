@@ -892,10 +892,11 @@ const MANIFEST = [
     label: "2026 CD2 Dem Primary",
     year: 2026,
     race: "CD2 Democratic Primary",
-    status: "coming_soon",
+    status: "available",
+    featured: true,
     dataUrl: "data/rcv_2026_cd2_dem.json",
-    meta: "CVR pending post-certification",
-    candidates: ["Baldacci", "Dunlap", "Loud", "Wood"]
+    meta: "4 candidates · Round 1 (election night) · 75,720 ballots",
+    candidates: ["Baldacci", "Dunlap", "Wood", "Loud"]
   }
 ];
 
@@ -908,7 +909,8 @@ function init() {
 // ── Featured interactive: first available election ──
 function buildFeatured(manifest) {
   const container = document.getElementById("featured-container");
-  const featured = manifest.find(e => e.status === "available");
+  const featured = manifest.find(e => e.status === "available" && e.featured)
+                || manifest.find(e => e.status === "available");
 
   if (!featured) {
     container.innerHTML = `<p style="color:var(--text-secondary);font-size:13px;">No available elections yet. Check back soon.</p>`;
@@ -964,6 +966,7 @@ function buildFeatured(manifest) {
 function getFeaturedDesc(e) {
   // Static descriptions keyed by id; fall back to generic
   const descs = {
+    "2026_cd2_dem": "Four candidates, election night. Baldacci leads the first-choice count but no one clears 50% — the race heads to a ranked-choice tabulation. Unofficial results by town; full RCV rounds drop when the Cast Vote Record is released.",
     "2018_cd2_dem": "Four candidates, four rounds. Jared Golden defeats Lucas St. Clair after Fulford and Olson are eliminated and their ballots redistribute across Maine's rural second district.",
     "2018_gov_dem": "Eight candidates, four rounds. Janet Mills wins the Democratic gubernatorial primary after Adam Cote, Elizabeth Sweet, Mark Eves, and four minor candidates are eliminated in sequence.",
   };
@@ -978,7 +981,12 @@ function buildCards(manifest) {
     return;
   }
 
-  container.innerHTML = manifest.map(e => {
+  // Determine which entry is featured so we don't duplicate it in the grid
+  const featuredEntry = manifest.find(e => e.status === "available" && e.featured)
+                     || manifest.find(e => e.status === "available");
+  const featuredId = featuredEntry ? featuredEntry.id : null;
+
+  container.innerHTML = manifest.filter(e => e.id !== featuredId).map(e => {
     const isAvailable = e.status === "available";
     const pills = (e.candidates || []).map(name => {
       const color = CANDIDATE_COLORS[name] || "#888";
