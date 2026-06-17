@@ -1073,6 +1073,12 @@ async function init() {
 
     // Default to first available election
     currentElection = Object.keys(ELECTIONS)[0] || '2018_cd2_dem';
+
+    // Honor ?election=<id> from the URL if it points to a loadable election
+    const requested = new URLSearchParams(window.location.search).get('election');
+    if (requested && ELECTIONS[requested] && DATA[ELECTIONS[requested].dataKey]) {
+      currentElection = requested;
+    }
   } catch (e) {
     // Fallback if manifest fetch fails: use embedded DATA keys
     console.warn('manifest.json not found, falling back to embedded DATA keys', e);
@@ -1082,6 +1088,10 @@ async function init() {
       ELECTIONS[key] = { label: label, dataKey: key, status: 'available' };
     }
     currentElection = Object.keys(ELECTIONS)[0];
+    const requestedFb = new URLSearchParams(window.location.search).get('election');
+    if (requestedFb && ELECTIONS[requestedFb] && DATA[ELECTIONS[requestedFb].dataKey]) {
+      currentElection = requestedFb;
+    }
   }
 
   populateElectionSelect();
