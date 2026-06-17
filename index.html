@@ -265,6 +265,8 @@ a { color: inherit; text-decoration: none; }
   transition: border-color 0.2s;
 }
 
+#featured-container { display: flex; flex-direction: column; gap: 20px; }
+
 .featured-card:hover { border-color: var(--gold); }
 
 .featured-left {
@@ -910,6 +912,7 @@ const MANIFEST = [
     year: 2026,
     race: "ME Democratic Gubernatorial Primary",
     status: "available",
+    featured: true,
     dataUrl: "data/rcv_2026_gov_dem.json",
     meta: "5 candidates · Round 1 (election night) · 214,920 ballots",
     candidates: ["Shah", "Pingree", "Jackson", "Bellows", "King III"]
@@ -923,20 +926,10 @@ function init() {
 }
 
 // ── Featured interactive: first available election ──
-function buildFeatured(manifest) {
-  const container = document.getElementById("featured-container");
-  const featured = manifest.find(e => e.status === "available" && e.featured)
-                || manifest.find(e => e.status === "available");
-
-  if (!featured) {
-    container.innerHTML = `<p style="color:var(--text-secondary);font-size:13px;">No available elections yet. Check back soon.</p>`;
-    return;
-  }
-
+function renderFeaturedCard(featured) {
   // Parse round count from manifest meta string (e.g. "4 candidates · 2 rounds · 50,845 ballots")
   const roundMatch = featured.meta.match(/(\d+) rounds/);
   const numRounds = roundMatch ? parseInt(roundMatch[1]) : null;
-  if (!numRounds) { console.warn("Could not parse round count from manifest meta:", featured.meta); }
 
   const roundNodes = numRounds ? Array.from({length: numRounds}, (_, i) => {
     const label = i === numRounds - 1 ? "Final" : `R${i + 1}`;
@@ -952,7 +945,7 @@ function buildFeatured(manifest) {
     </div>`;
   }).join("");
 
-  container.innerHTML = `
+  return `
     <a href="rcv_map.html?election=${featured.id}" class="featured-card">
       <div class="featured-left">
         <div>
@@ -979,6 +972,23 @@ function buildFeatured(manifest) {
     </a>`;
 }
 
+function buildFeatured(manifest) {
+  const container = document.getElementById("featured-container");
+  // Render every entry flagged featured; fall back to the first available one.
+  let featuredList = manifest.filter(e => e.status === "available" && e.featured);
+  if (!featuredList.length) {
+    const first = manifest.find(e => e.status === "available");
+    if (first) featuredList = [first];
+  }
+
+  if (!featuredList.length) {
+    container.innerHTML = `<p style="color:var(--text-secondary);font-size:13px;">No available elections yet. Check back soon.</p>`;
+    return;
+  }
+
+  container.innerHTML = featuredList.map(renderFeaturedCard).join("");
+}
+
 function getFeaturedDesc(e) {
   // Static descriptions keyed by id; fall back to generic
   const descs = {
@@ -998,12 +1008,17 @@ function buildCards(manifest) {
     return;
   }
 
-  // Determine which entry is featured so we don't duplicate it in the grid
-  const featuredEntry = manifest.find(e => e.status === "available" && e.featured)
-                     || manifest.find(e => e.status === "available");
-  const featuredId = featuredEntry ? featuredEntry.id : null;
+  // Exclude every featured entry from the grid so they aren't duplicated
+  const featuredIds = new Set(
+    manifest.filter(e => e.status === "available" && e.featured).map(e => e.id)
+  );
+  // Fall back to the first available entry if nothing is explicitly flagged
+  if (!featuredIds.size) {
+    const first = manifest.find(e => e.status === "available");
+    if (first) featuredIds.add(first.id);
+  }
 
-  container.innerHTML = manifest.filter(e => e.id !== featuredId).map(e => {
+  container.innerHTML = manifest.filter(e => !featuredIds.has(e.id)).map(e => {
     const isAvailable = e.status === "available";
     const pills = (e.candidates || []).map(name => {
       const color = CANDIDATE_COLORS[name] || "#888";
